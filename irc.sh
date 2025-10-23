@@ -8,6 +8,7 @@ SERVER=irc.libera.chat
 PORT=6667
 NICK=bashircuser
 CHANNEL=\#bash-dev
+VERSION="PUREBASH IRC https://github.com/pierrecdevs/purebash-irc"
 VERBOSE=TRUE
 
 fatal() {
@@ -134,7 +135,7 @@ parse-request() {
         if [[ $nick == "n32d" && $trailing == "quit" ]]; then
           send-message "${fd}" "${middle_params[*]}" "Have a great day!"
           sleep 5
-          quit "${fd}" "PUREBASH IRC https://github.com/pierrecdevs/purebash-irc"
+          quit "${fd}" "PUREBASH IRC (https://github.com/pierrecdevs/purebash-irc)"
         else
           printf "[*] Message %s\n[%s]: %s\n" "${middle_params[*]}" "${nick}" "${trailing}"
         fi

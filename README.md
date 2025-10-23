@@ -27,3 +27,10 @@ It's not a fully featured client it's a proof of concept inspired by Commander_K
 ```bash
 ./irc.sh -s irc.libera.chat -p 6667 -n bash_irc_user -c \#bash-dev
 ```
+
+
+### NOTE
+
+The `QUIT` reason is not sent if you're not connected long enough on Libera. I've reached out to their support and this was the response:
+
+> 16:34 <@[REDACTED]> [REDACTED]: we strip quit reasons from clients who haven't been connected very long as an anti-spam measure
