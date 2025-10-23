@@ -16,6 +16,14 @@ More options can be added like debug
 
 It's not a fully featured client it's a proof of concept inspired by Commander_Keen and Dave Eddy
 
+### Options
+
+- `s` - Server to connect to
+- `p` - Port to connect to
+- `n` - Nickname to use
+- `c` - Channel to autojoin
+- `v` - Verbose (default: TRUE)
+
 ```bash
 ./irc.sh -s irc.libera.chat -p 6667 -n bash_irc_user -c \#bash-dev
 ```
