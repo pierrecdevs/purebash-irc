@@ -8,6 +8,7 @@ SERVER=irc.libera.chat
 PORT=6667
 NICK=bashircuser
 CHANNEL=\#bash-dev
+VERBOSE=TRUE
 
 fatal() {
   echo '[FATAL]' "$@" >&2 
@@ -49,7 +50,7 @@ quit() {
   local message=${@:2}
   message="${message#"${message%%[![:space:]]*}"}"
   message="${message%"${message##*[![:space:]]}"}"
-  message="${message:-Source code available: https://github.com/pierrecdevs/purebash-irc}"
+  message="${message:-Source code available: //github.com/pierrecdevs/purebash-irc}"
 
   echo "QUITTING"
 
@@ -63,9 +64,11 @@ send-command() {
   cmd="${cmd%"${cmd##*[![:space:]]}"}"
   
   # TODO: This is for debug purpose will add a debug option soon.
-  echo "Sending: ${cmd}..."
+  if [[ $VERBOSE == "TRUE" ]]; then
+    printf '\e[42m -%c %s \e[0m\n' ">" "${cmd}"
+  fi
 
-  printf "%s\r\n" "${cmd}" >&${fd};
+  printf "%s\n" "${cmd}" >&${fd};
 }
 
 parse-request() {
@@ -91,13 +94,18 @@ parse-request() {
      ;;
    '366')
      echo "JOINED."
+     # NOTE: This can obviously be changed to have it's own usecase
      send-message "${fd}" "${CHANNEL}" "Hello from BASH"
      send-message "${fd}" "${CHANNEL}" "Have a great day!"
      ;;
    *)
      if [[ $line =~ ^PING\  ]]; then
        pong "${fd}" "${remainder}"
-       quit "${fd}" "Source at https://github.com/pierrecdevs/purebash-irc"
+       quit "${fd}" "Source at //github.com/pierrecdevs/purebash-irc"
+      else
+        if [[ $VERBOSE == "TRUE" ]]; then
+          printf '\e[41m %c- %s \e[0m\n' "<" "${line}"
+        fi
      fi
      ;;
   esac
@@ -124,16 +132,18 @@ process-data() {
 
 main() {
   local OPTARG OPTIND opt
-  while getopts 's:p:n:c:' opt; do
+  while getopts 's:p:n:c:v:' opt; do
     case "$opt" in
       s) SERVER=$OPTARG;;
       p) PORT=$OPTARG;;
       n) NICK=$OPTARG;;
       c) CHANNEL=$OPTARG;;
+      v) VERBOSE=$OPTARG;;
       *) fatal 'bad option';;
     esac
   done
 
+  VERBOSE="${VERBOSE:-FALSE}"
   printf "Connecting to %s:%d as %s and joining %s\n" $SERVER $PORT $NICK $CHANNEL
 
   local fd=3
