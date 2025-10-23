@@ -53,61 +53,105 @@ quit() {
   message="${message:-Source code available: //github.com/pierrecdevs/purebash-irc}"
 
   echo "QUITTING"
-
   send-command "${fd}" "QUIT :${message}"
 }
 
 send-command() {
   local fd=$1
   local cmd=${@:2}
+  cmd="${cmd//$'\r'/}"
+  cmd="${cmd//$'\n'/}"
   cmd="${cmd#"${cmd%%[![:space:]]*}"}"
   cmd="${cmd%"${cmd##*[![:space:]]}"}"
   
   # TODO: This is for debug purpose will add a debug option soon.
   if [[ $VERBOSE == "TRUE" ]]; then
-    printf '\e[42m -%c %s \e[0m\n' ">" "${cmd}"
+    printf '\e[42m -%c %s\e[0m\n' ">" "${cmd}"
   fi
 
-  printf "%s\n" "${cmd}" >&${fd};
+  printf "%s\r\n" "${cmd}" >&${fd};
 }
 
 parse-request() {
   local fd=$1
   local line=${@:2}
-  line="${line#"${line%%[![:space:]]*}"}"
-  line="${line%"${line##*[![:space:]]}"}"
 
-  local server_name="${line%% *}"
-  local reply_code="${line#* }"
-  reply_code="${reply_code%% *}"
+  # REF: https://datatracker.ietf.org/doc/html/rfc1459#section-2.3.1
+  local prefix=""
+  local command=""
+  local trailing=""
+  local middle=""
+  local nick=""
+  local user=""
+  local host=""
+  local remainder=""
 
-  local nick_connected="${line#* $reply_code }"
-  nick_connected="${nick_connected%% *}"
+  if [[ "$line" == :* ]]; then
+    prefix="${line%% *}"
+    line="${line#"$prefix"}"
+    line="${line# }"
+  fi
 
-  local remainder="${line#* $reply_code $nick_connected}"
-  
-  echo "($reply_code) $remainder"
+  command="${line%% *}"
+  line="${line#"$command"}"
+  line="${line# }"
 
-  case $reply_code in 
-    '376')
+  if [[ "$line" == *:* ]]; then
+    trailing="${line#*:}"
+    middle="${line%%:*}"
+  else
+    middle="$line"
+  fi
+
+  IFS=' ' read -r -a middle_params <<< "$middle"
+  if [[ "$prefix" =~ ^:([^!]+)!([^@]+)@(.+)$ ]]; then
+    nick="${BASH_REMATCH[1]}"
+    user="${BASH_REMATCH[2]}"
+    host="${BASH_REMATCH[3]}"
+  fi
+
+  case "$command" in
+    376)
       join-channel "${fd}" "${CHANNEL}"
      ;;
-   '366')
+    366)
      echo "JOINED."
      # NOTE: This can obviously be changed to have it's own usecase
-     send-message "${fd}" "${CHANNEL}" "Hello from BASH"
-     send-message "${fd}" "${CHANNEL}" "Have a great day!"
+     # send-message "${fd}" "${CHANNEL}" "Hello from BASH"
+     # send-message "${fd}" "${CHANNEL}" "Have a great day!"
      ;;
-   *)
-     if [[ $line =~ ^PING\  ]]; then
-       pong "${fd}" "${remainder}"
-       quit "${fd}" "Source at //github.com/pierrecdevs/purebash-irc"
+   NOTICE)
+     printf "[*] NOTICE %s\n%s\n" "${prefix}" "${trailing}"
+     ;;
+    PRIVMSG)
+      if [[ "$trailing" =~ $'\x01'.*$'\x01' ]]; then
+        local ctcp_type="${trailing//$'\x01'/}"
+        printf "[*] CTCP DETECTED: %s\n" "${ctcp_type}"
       else
-        if [[ $VERBOSE == "TRUE" ]]; then
-          printf '\e[41m %c- %s \e[0m\n' "<" "${line}"
+        trailing="${trailing#"${trailing%%[![:space:]]*}"}"
+        trailing="${trailing%"${trailing##*[![:space:]]}"}"
+
+        if [[ $nick == "n32d" && $trailing == "quit" ]]; then
+          send-message "${fd}" "${middle_params[*]}" "Have a great day!"
+          sleep 5
+          quit "${fd}" "PUREBASH IRC https://github.com/pierrecdevs/purebash-irc"
+        else
+          printf "[*] Message %s\n[%s]: %s\n" "${middle_params[*]}" "${nick}" "${trailing}"
         fi
-     fi
-     ;;
+      fi
+      ;;
+    PING)
+      pong "${fd}" "${line}"
+      ;;
+    JOIN)
+      printf "[+] %s Joined: %s\n%s\n" "${nick}" "${middle_params[0]}" "${trailing}"
+      ;;
+    PART)
+      printf "[-] %s Left: %s\n%s\n" "${nick}" "${middle_params[0]}" "${trailing}"
+      ;;
+    *)
+      printf "\e[41m%c- (%s) %s\e[0m\n" "<" "${command}" "${line}"
+      ;;
   esac
 }
 
@@ -116,7 +160,7 @@ pong() {
   local resp=$2
 
   echo "PONG! ${resp}"
-  send-command "${fd}" "${resp}"
+  send-command "${fd}" "PONG ${resp}"
 }
 
 process-data() {
@@ -128,7 +172,6 @@ process-data() {
 
   exec {fd}>&-
 }
-
 
 main() {
   local OPTARG OPTIND opt
@@ -144,7 +187,11 @@ main() {
   done
 
   VERBOSE="${VERBOSE:-FALSE}"
-  printf "Connecting to %s:%d as %s and joining %s\n" $SERVER $PORT $NICK $CHANNEL
+  printf "Connecting to %s:%d as %s and joining %s\n" \
+    "${SERVER}" \
+    "${PORT}" \
+    "${NICK}" \
+    "${CHANNEL}"
 
   local fd=3
   trap "graceful-exit" "${fd}" exit
