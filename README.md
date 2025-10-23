@@ -7,3 +7,15 @@ Big thanks to Dave Eddy (sp?) over on YouTube his tutorials are crazy amazing.
 I'm sure this can be improved.
 
 Pull requests welcomed.
+
+## Usage
+
+The `#` needs to be escaped.
+
+More options can be added like debug
+
+It's not a fully featured client it's a proof of concept inspired by Commander_Keen and Dave Eddy
+
+```bash
+./irc.sh -s irc.libera.chat -p 6667 -n bash_irc_user -c \#bash-dev
+```
