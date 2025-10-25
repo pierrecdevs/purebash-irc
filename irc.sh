@@ -19,7 +19,7 @@ fatal() {
 graceful-exit() {
   local fd=$1
   echo "EXITING..."
-  exec ${fd}>&-
+  exec {fd}>&-
 }
 
 join-channel() {
@@ -204,9 +204,9 @@ main() {
     "${AUTO_JOIN}"
 
   local fd=3
-  trap "graceful-exit" "${fd}" exit
   exec {fd}<>/dev/tcp/$SERVER/$PORT
-  
+  trap "graceful-exit ${fd}" exit
+
   send-command "${fd}" "NICK ${NICK}"
   send-command "${fd}" "USER ${NICK} 0 * :${NICK}"
   process-data "${fd}"
