@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Copyright (c) 2025 pierrecdevs
-#
-# Licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
-# See the LICENSE file for details.
+# Copyright (c) 2025 Pierre C (pierrecdevs)
+# Licensed under the MIT License.
+# See https://opensource.org/licenses/MIT for details.
 
 SERVER=irc.libera.chat
 PORT=6667
 NICK=bashircuser
-CHANNEL=\#bash-dev
+AUTO_JOIN=\#bash-dev
 VERSION="PUREBASH IRC https://github.com/pierrecdevs/purebash-irc"
 VERBOSE=TRUE
+COLORS=FALSE
 
 fatal() {
   echo '[FATAL]' "$@" >&2 
@@ -67,7 +67,11 @@ send-command() {
   
   # TODO: This is for debug purpose will add a debug option soon.
   if [[ $VERBOSE == "TRUE" ]]; then
-    printf '\e[42m -%c %s\e[0m\n' ">" "${cmd}"
+    if [[ $COLORS == "TRUE" ]]; then 
+      printf '\e[42m -%c %s\e[0m\n' ">" "${cmd}"
+    else
+      echo "-> ${cmd}"
+    fi
   fi
 
   printf "%s\r\n" "${cmd}" >&${fd};
@@ -113,7 +117,7 @@ parse-request() {
 
   case "$command" in
     376)
-      join-channel "${fd}" "${CHANNEL}"
+      join-channel "${fd}" "${AUTO_JOIN}"
      ;;
     366)
      echo "JOINED."
@@ -151,7 +155,11 @@ parse-request() {
       printf "[-] %s Left: %s\n%s\n" "${nick}" "${middle_params[0]}" "${trailing}"
       ;;
     *)
-      printf "\e[41m%c- (%s) %s\e[0m\n" "<" "${command}" "${line}"
+      if [[ $COLORS == "TRUE" ]]; then
+        printf "\e[41m%c- (%s) %s\e[0m\n" "<" "${command}" "${line}"
+      else
+        echo "<- (${command}) ${line}"
+      fi
       ;;
   esac
 }
@@ -161,7 +169,7 @@ pong() {
   local resp=$2
 
   echo "PONG! ${resp}"
-  send-command "${fd}" "PONG ${resp}"
+  send-command "${fd}" "PONG :${resp}"
 }
 
 process-data() {
@@ -176,12 +184,13 @@ process-data() {
 
 main() {
   local OPTARG OPTIND opt
-  while getopts 's:p:n:c:v:' opt; do
+  while getopts 's:p:n:a:c:v:' opt; do
     case "$opt" in
       s) SERVER=$OPTARG;;
       p) PORT=$OPTARG;;
       n) NICK=$OPTARG;;
-      c) CHANNEL=$OPTARG;;
+      a) AUTO_JOIN=$OPTARG;;
+      c) COLORS=$OPTARG;;
       v) VERBOSE=$OPTARG;;
       *) fatal 'bad option';;
     esac
@@ -192,7 +201,7 @@ main() {
     "${SERVER}" \
     "${PORT}" \
     "${NICK}" \
-    "${CHANNEL}"
+    "${AUTO_JOIN}"
 
   local fd=3
   trap "graceful-exit" "${fd}" exit
